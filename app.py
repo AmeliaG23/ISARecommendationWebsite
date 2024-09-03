@@ -17,8 +17,7 @@ Description : This file is the main basis for the whole ISA Recommendation Websi
 from sqlite3 import IntegrityError
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
-import os
+import crypt 
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -75,6 +74,18 @@ def getCurrentUser():
         if user:
             return user.id  # Return only the user ID
     return None
+
+# Function to hash the password using sha256
+def hashPassword(password):
+    # Use a specific salt format for PostgreSQL compatibility; use random salt for security
+    salt = crypt.mksalt(crypt.METHOD_SHA512)  # Using SHA-512 for stronger security
+    hashed = crypt.crypt(password, salt)
+    return hashed
+
+# Function to check the password
+def checkPassword(hashedPassword, inputPassword):
+    # Re-hash the input password with the same salt and compare
+    return crypt.crypt(inputPassword, hashedPassword) == hashedPassword
 
 # Function to calculate future value based on inputs
 def calculateFutureValue(deposit, monthlyPayment, years, annualAer):
@@ -148,7 +159,7 @@ def addData():
             if not existing_user:
                 new_user = User(
                     username=user_data['username'],
-                    password=generate_password_hash(user_data['password']),
+                    password=hashPassword(user_data['password']),
                     admin=True if 'admin' in user_data['username'] else False
                 )
                 db.session.add(new_user)
@@ -211,7 +222,7 @@ def index():
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
 
-        if user and check_password_hash(user.password, password):  # Check hashed password
+        if user and checkPassword(user.password, password):  # Check hashed password
             session['userId'] = user.id
             session['admin'] = user.admin
             return redirect(url_for('home'))
@@ -241,9 +252,9 @@ def signUp():
             flash("Passwords do not match", 'warning')
             return redirect(url_for('signUp'))
 
-        hashed_password = generate_password_hash(password)
+        hashedPassword = hashPassword(password)
 
-        new_user = User(username=username, password=hashed_password, admin=False)
+        new_user = User(username=username, password=hashedPassword, admin=False)
         #(Python Tutorials, 2023)
 
         try:
@@ -291,7 +302,7 @@ def admin():
                 return render_template('admin.html', users=User.query.all())
             
             # Hash password for security
-            hashed_password = generate_password_hash(password)
+            hashed_password = hashPassword(password)
 
             # Create a new User object
             new_user = User(username=username, password=hashed_password, admin=admin)
@@ -339,7 +350,7 @@ def userAccount(id):
                 if new_username:
                     user.username = new_username
                 if new_password:
-                    user.password = generate_password_hash(new_password)
+                    user.password = hashPassword(new_password)
 
                 db.session.commit()
                 flash("Account updated successfully!", 'success')
@@ -393,7 +404,7 @@ def update(id):
         # Generates hash of password to ensure security
         user.username = new_username
         if new_password:
-            user.password = generate_password_hash(new_password)
+            user.password = hashPassword(new_password)
 
         # Updates user details if username is available
         db.session.commit()
