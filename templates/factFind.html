@@ -1,0 +1,142 @@
+<!-- 
+File : factFind.html
+Author : Amelia Goldsby
+Date Created : 27/08/2024
+Project : ISA Recommendation Website
+Course : Software Engineering and Agile
+         Level 5, QA 
+
+Description : This file is the beginning of the Recommendation journey. Users will answer questions 
+              regarding affordability, and answers will be saved to the database table EligibilityProjection
+(Germain, 2023)
+-->
+
+<!-- Jinja -->
+<!-- Extends base.html where header and footer is set and main.css is used-->
+{% extends "base.html" %}
+<!-- Title of page -->
+{% block title %}Fact Find Evaluation{% endblock %}
+
+{% block content %}
+<script>
+    // Javascript function to validate form entries to be between specific values
+    function validateForm(event) {
+        // Retrieves inputs from form
+        let deposit = parseFloat(document.querySelector('input[name="deposit"]').value);
+        let monthlyPayment = parseFloat(document.querySelector('input[name="monthlyPayment"]').value);
+        let years = parseInt(document.querySelector('input[name="years"]').value);
+        let savings = document.querySelector('input[name="savings"]:checked').value === "true";
+        let highDebt = document.querySelector('input[name="highDebt"]:checked').value === "true";
+        let changes = document.querySelector('input[name="changes"]:checked').value === "true";
+
+        // if deposit input is less than or equal to 30
+        if (deposit <= 30) {
+            alert("Deposit must be greater than 30.");
+            return false;
+        }
+        // if monthly payment is less than or equal to 25 
+        if (monthlyPayment <= 25) {
+            alert("Monthly Payment must be greater than 25.");
+            return false;
+        }
+        // if years is more than or equal to 40
+        if (years >= 40) {
+            alert("Number of years must be less than 40.");
+            return false;
+        }
+        // if savings is false
+        if (!savings) {
+            alert("You must have enough savings left over after investing.");
+            return false;
+        }
+        // if high debt is true
+        if (highDebt) {
+            alert("You must not have high debt to apply for an ISA.");
+            return false;
+        }
+        // if changes is true
+        if (changes) {
+            alert("You must not be expecting major financial changes.");
+            return false;
+        }
+        // checks all radio buttons are checked
+        let radios = document.querySelectorAll('input[type="radio"]');
+        for (let radio of radios) {
+            let name = radio.name;
+            if (document.querySelectorAll(`input[name="${name}"]:checked`).length === 0) {
+                alert("Please answer all the questions.");
+                return false;
+            }
+        }
+
+        return true;
+    }
+</script>
+<!-- Contains main body content -->
+<div class="content">
+    <h1>Fact Find Evaluation</h1>
+    <p>Please fill out the following affordability evaluation form to see if you are eligible for an ISA.</p>
+    <div class="form">
+        <form method="POST" action="{{ url_for('factFind') }}" onsubmit="return validateForm(event)">
+            <!-- Affordability evalation questions -->
+            <!-- Integer inputs -->
+            <label>Deposit: </label><br>
+            <input type="number" name="deposit" placeholder="Deposit" required />
+            <br>
+            <label>Monthly Payment: </label><br>
+            <input type="number" name="monthlyPayment" placeholder="Monthly Payment" required /><br>
+            <label>Number of years you want to invest for: </label><br>
+            <input type="number" name="years" placeholder="Years" required /><br>
+            <!-- Radio buttons -->
+            <label>Will you have enough savings after investing?
+                <br>
+                <input type="radio" name="savings" value="true" required /> Yes
+                <br>
+                <input type="radio" name="savings" value="false" /> No
+            </label><br />
+            <label>Do you have high debt?
+                <br>
+                <input type="radio" name="highDebt" value="true" /> Yes
+                <br>
+                <input type="radio" name="highDebt" value="false" required /> No
+            </label><br />
+            <label>Are you expecting any changes?
+                <br>
+                <input type="radio" name="changes" value="true" /> Yes
+                <br>
+                <input type="radio" name="changes" value="false" required /> No
+            </label><br />
+            <!-- Attitude to risk questions -->
+            <h2>Attitude to Risk</h2>
+            <label>How would you describe your willingness to take risks?
+                <br>
+                <input type="radio" name="riskTolerance" value="high" required /> High
+                <br>
+                <input type="radio" name="riskTolerance" value="medium" /> Medium
+                <br>
+                <input type="radio" name="riskTolerance" value="low" /> Low
+            </label><br />
+            <label>How comfortable are you with investments?
+                <br>
+                <input type="radio" name="investmentComfort" value="veryComfortable" required /> Very Comfortable
+                <br>
+                <input type="radio" name="investmentComfort" value="somewhatComfortable" /> Somewhat Comfortable
+                <br>
+                <input type="radio" name="investmentComfort" value="notComfortable" /> Not Comfortable
+            </label><br />
+            <label>How frequently do you review your investments?
+                <br>
+                <input type="radio" name="investmentReview" value="regularly" required /> Regularly
+                <br>
+                <input type="radio" name="investmentReview" value="occasionally" /> Occasionally
+                <br>
+                <input type="radio" name="investmentReview" value="rarely" /> Rarely
+            </label><br />
+            <br>
+            <button type="submit" class="button">Submit</button> <br>
+            <!-- Button will redirect user to last screen -->
+            <button class="back-button" onclick="window.history.back()">Back</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

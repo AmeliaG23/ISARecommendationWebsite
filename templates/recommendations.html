@@ -1,0 +1,71 @@
+<!-- 
+File : recommendations.html
+Author : Amelia Goldsby
+Date Created : 28/08/2024
+Project : ISA Recommendation Website
+Course : Software Engineering and Agile
+         Level 5, QA 
+
+Description : This file contains the layout for is the page in which users are able to view past 
+              projections, if they have one. It will update everytime a new projection is forecasted- 
+              only displaying the recent one to avoid confusion. Users are also only able to view their own 
+              projection due to the GDPR law (Gov.uk, 2024).
+(Germain, 2023)
+-->
+
+<!-- Jinja -->
+<!-- Extends base.html where header and footer is set and main.css is used-->
+{% extends "base.html" %}
+<!-- Page title -->
+{% block title %}Past Projections{% endblock %}
+
+{% block content %}
+
+<script>
+    // Javascript function for back button- redirects user to home.html
+    function backButton() {
+        window.location.href = "{{ url_for('home') }}";
+    }
+</script>
+
+<div class="content">
+    <h1>Past Projections</h1>
+    <br>
+    <p>If you have completed the Fact Find Questions before, your past projections will be visible below!</p>
+
+    <!-- If there is data in the Projections table for the current user -->
+    {% if projectionsData and projectionsData|length > 0 %}
+    <table border="1"> <!-- Display data in table -->
+        <thead>
+            <tr>
+                <th>Deposit</th>
+                <th>Monthly Payment</th>
+                <th>Years</th>
+                <th>Normal Projection Amount</th>
+                <th>Risk Rating</th>
+                <th>Projection Risk Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Iterate over each projection in the projectionsData list -->
+            {% for projection in projectionsData %}
+            <tr>
+                <td>£{{ projection.deposit }}</td>
+                <td>£{{ projection.monthlyPayment }}</td>
+                <td>{{ projection.years }}</td>
+                <td>£{{ projection.projectionAmount if projection.projectionAmount is not none else 'Not available' }}
+                </td>
+                <td>{{ projection.riskRating }}</td>
+                <td>£{{ projection.projectionRiskAmount if projection.projectionRiskAmount is not none else 'Not
+                    available' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <!-- If there is no past projection this message will be displayed -->
+    <p>You have no past projections, complete the fact find questionnaire first.</p>
+    {% endif %}
+    <button class="back-button" type="button" onclick="backButton()">Back</button>
+</div>
+{% endblock %}
