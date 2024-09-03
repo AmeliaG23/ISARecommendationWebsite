@@ -17,13 +17,14 @@ Description : This file is the main basis for the whole ISA Recommendation Websi
 from sqlite3 import IntegrityError
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-import crypt 
+import bcrypt
+import os
 
 # Initialize the Flask application
 app = Flask(__name__)
 
 # Configuration for Database location and secret key for sessions
-app.config['SECRET_KEY'] = 'your_secret_key'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 
 # Use the environment variable DATABASE_URL if available; otherwise, use SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://default:U3oagGiR7HcT@ep-delicate-dew-a4quxafl.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require"
@@ -74,6 +75,17 @@ def getCurrentUser():
         if user:
             return user.id  # Return only the user ID
     return None
+
+# Function to hash the password using bcrypt
+def hashPassword(password):
+    salt = bcrypt.gensalt()  # Generate a salt
+    hashed = bcrypt.hashpw(password.encode('utf-8'), salt)  # Hash the password with the salt
+    return hashed.decode('utf-8')  # Return as a UTF-8 string
+
+# Function to check the password
+def checkPassword(hashedPassword, inputPassword):
+    return bcrypt.checkpw(inputPassword.encode('utf-8'), hashedPassword.encode('utf-8'))
+
 
 # Function to calculate future value based on inputs
 def calculateFutureValue(deposit, monthlyPayment, years, annualAer):
@@ -143,18 +155,20 @@ def addData():
         # Add users to the database
         for user_data in admin_users:
             if not User.query.filter_by(username=user_data['username']).first():
+                hashedPassword = hashPassword(user_data['password'])
                 new_user = User(
                     username=user_data['username'],
-                    password=user_data['password'],
+                    password=hashedPassword,
                     admin=True
                 )
                 db.session.add(new_user)
 
         for user_data in regular_users:
             if not User.query.filter_by(username=user_data['username']).first():
+                hashedPassword = hashPassword(user_data['password'])
                 new_user = User(
                     username=user_data['username'],
-                    password=user_data['password'],
+                    password=hashedPassword,
                     admin=False
                 )
                 db.session.add(new_user)
@@ -220,7 +234,7 @@ def index():
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
 
-        if user and password:  # Check details 
+        if user and checkPassword(user.password, password):  # Check hashed password
             session['userId'] = user.id
             session['admin'] = user.admin
             return redirect(url_for('home'))
@@ -249,8 +263,9 @@ def signUp():
         if password != confirm_password:
             flash("Passwords do not match", 'warning')
             return redirect(url_for('signUp'))
-
-        new_user = User(username=username, password=password, admin=False)
+        
+        hashed_password = hashPassword(password)  # Hash the password
+        new_user = User(username=username, password=hashed_password, admin=False)
         #(Python Tutorials, 2023)
 
         try:
@@ -297,8 +312,11 @@ def admin():
                 flash("Password must be between 5 and 15 characters long", 'danger')
                 return render_template('admin.html', users=User.query.all())
 
+             # Hash the password before storing it
+            hashed_password = hashPassword(password)
+
             # Create a new User object
-            new_user = User(username=username, password=password, admin=admin)
+            new_user = User(username=username, password=hashed_password, admin=admin)
             
             try: # Commit new User object
                 db.session.add(new_user)
@@ -397,7 +415,7 @@ def update(id):
         # Generates hash of password to ensure security
         user.username = new_username
         if new_password:
-            user.password = new_password
+                user.password = hashPassword(new_password)  # Hash the new password
 
         # Updates user details if username is available
         db.session.commit()
