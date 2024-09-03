@@ -317,7 +317,7 @@ def admin():
 
             # Create a new User object
             new_user = User(username=username, password=hashed_password, admin=admin)
-            
+
             try: # Commit new User object
                 db.session.add(new_user)
                 db.session.commit()
@@ -334,6 +334,7 @@ def admin():
         # If the user is not logged in or is not an admin, redirect to the login page
         return redirect(url_for('index'))
 
+# Route for admin accounts to access table to view all user account and perform CRUD operations
 @app.route('/userAccount', defaults={'id': None}, methods=['GET', 'POST'])
 @app.route('/userAccount/<int:id>', methods=['GET', 'POST'])
 def userAccount(id):
@@ -361,7 +362,7 @@ def userAccount(id):
                 if new_username:
                     user.username = new_username
                 if new_password:
-                    user.password = new_password
+                    user.password = hashPassword(new_password)  # Hash the new password before saving
 
                 db.session.commit()
                 flash("Account updated successfully!", 'success')
