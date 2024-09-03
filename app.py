@@ -137,34 +137,41 @@ def calculateRiskRatingCount(riskTolerance, investmentComfort, investmentReview)
 
 # Function to add initial data to the database (2 admin users + 10 regular users)
 def addData():
-    try:
-        # Check if there are already any users in the database
-        if User.query.first() is not None:
-            print("Data already initialized.")
-            return  # Exit the function early if data exists
+    # Check if there are any users in the database
+    if User.query.first() is not None:
+        print("Data already initialized.")
+        return  # Exit the function early if data exists
 
-        # Create and add the admin users if they do not already exist
+    try:
+        # Define 2 admin users and 8 regular users
         admin_users = [
             {'username': 'admin1', 'password': 'admin_password1'},
             {'username': 'admin2', 'password': 'admin_password2'}
         ]
         regular_users = [
-            {'username': f'user{i}', 'password': f'user{i}_password'} for i in range(1, 11)
+            {'username': f'user{i}', 'password': f'user{i}_password'} for i in range(1, 9)
         ]
 
-        # Add users to the database if they do not already exist
-        for user_data in admin_users + regular_users:
-            # Check if user already exists
-            existing_user = User.query.filter_by(username=user_data['username']).first()
-            if not existing_user:
+        # Add users to the database
+        for user_data in admin_users:
+            if not User.query.filter_by(username=user_data['username']).first():
                 new_user = User(
                     username=user_data['username'],
                     password=hashPassword(user_data['password']),
-                    admin=True if 'admin' in user_data['username'] else False
+                    admin=True
                 )
                 db.session.add(new_user)
 
-        db.session.commit()  # Commit all users to the database
+        for user_data in regular_users:
+            if not User.query.filter_by(username=user_data['username']).first():
+                new_user = User(
+                    username=user_data['username'],
+                    password=hashPassword(user_data['password']),
+                    admin=False
+                )
+                db.session.add(new_user)
+
+        db.session.commit()  # Commit users to the database
 
         # Retrieve all users from the database
         all_users = User.query.all()
@@ -174,20 +181,17 @@ def addData():
         monthly_payment = 50.0
         years = 10
 
-        # Add projections with random amounts if they do not already exist
+        # Add projections for each user
         for user in all_users:
-            # Check if a projection already exists for the user
-            existing_projection = Projections.query.filter_by(userId=user.id).first()
-            if not existing_projection:
-                # Use default values for AER and risk rating
+            if not Projections.query.filter_by(userId=user.id).first():
+                # Calculate future value of savings
                 annual_aer = 0.0484  # Default AER
-                risk_aer = getRiskAer('medium')  # Calculate AER based on risk rating
+                risk_aer = getRiskAer('medium')  # Example risk rating
                 
-                # Calculate the future value of savings and risk-adjusted savings
                 projection_amount = calculateFutureValue(deposit, monthly_payment, years, annual_aer)
                 projection_risk_amount = calculateFutureValue(deposit, monthly_payment, years, risk_aer)
                 
-                # Create a new projection entry
+                # Create new projection
                 projection = Projections(
                     deposit=deposit,
                     monthlyPayment=monthly_payment,
@@ -203,16 +207,22 @@ def addData():
                 )
                 db.session.add(projection)
 
-        db.session.commit()  # Commit all projections to the database
+        db.session.commit()  # Commit projections to the database
 
     except IntegrityError:
-        # Handle database integrity errors (e.g., duplicates)
         db.session.rollback()
         print("Error adding data. Some entries might already exist.")
     except Exception as e:
-        # Handle any other unexpected errors
         db.session.rollback()
         print(f"An unexpected error occurred: {e}")
+
+@app.route('/initialize', methods=['GET'])
+def initialize():
+    if session.get('admin'):
+        addData()
+        return "Data initialization complete."
+    else:
+        return "Unauthorized", 403
 
 # Default route which is user login
 @app.route('/', methods=['POST', 'GET'])
@@ -541,7 +551,6 @@ def recommendations():
 
 # Entry point for the application
 if __name__ == '__main__':
-    #addData()  # Initialize data once when the app starts
     app.run()
 
 #(Jakerieger, 2022)
