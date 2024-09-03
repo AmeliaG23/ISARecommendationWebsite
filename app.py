@@ -75,18 +75,6 @@ def getCurrentUser():
             return user.id  # Return only the user ID
     return None
 
-# Function to hash the password using sha256
-def hashPassword(password):
-    # Use a specific salt format for PostgreSQL compatibility; use random salt for security
-    salt = crypt.mksalt(crypt.METHOD_SHA512)  # Using SHA-512 for stronger security
-    hashed = crypt.crypt(password, salt)
-    return hashed
-
-# Function to check the password
-def checkPassword(hashedPassword, inputPassword):
-    # Re-hash the input password with the same salt and compare
-    return crypt.crypt(inputPassword, hashedPassword) == hashedPassword
-
 # Function to calculate future value based on inputs
 def calculateFutureValue(deposit, monthlyPayment, years, annualAer):
     monthlyAer = (1 + annualAer) ** (1 / 12) - 1 # Calculate monthly Aer from annual rate
@@ -157,7 +145,7 @@ def addData():
             if not User.query.filter_by(username=user_data['username']).first():
                 new_user = User(
                     username=user_data['username'],
-                    password=hashPassword(user_data['password']),
+                    password=user_data['password'],
                     admin=True
                 )
                 db.session.add(new_user)
@@ -166,7 +154,7 @@ def addData():
             if not User.query.filter_by(username=user_data['username']).first():
                 new_user = User(
                     username=user_data['username'],
-                    password=hashPassword(user_data['password']),
+                    password=user_data['password'],
                     admin=False
                 )
                 db.session.add(new_user)
@@ -232,7 +220,7 @@ def index():
         password = request.form['password']
         user = User.query.filter_by(username=username).first()
 
-        if user and checkPassword(user.password, password):  # Check hashed password
+        if user and password:  # Check details 
             session['userId'] = user.id
             session['admin'] = user.admin
             return redirect(url_for('home'))
@@ -262,9 +250,7 @@ def signUp():
             flash("Passwords do not match", 'warning')
             return redirect(url_for('signUp'))
 
-        hashedPassword = hashPassword(password)
-
-        new_user = User(username=username, password=hashedPassword, admin=False)
+        new_user = User(username=username, password=password, admin=False)
         #(Python Tutorials, 2023)
 
         try:
@@ -310,12 +296,9 @@ def admin():
                 # Display an error message if it is nott
                 flash("Password must be between 5 and 15 characters long", 'danger')
                 return render_template('admin.html', users=User.query.all())
-            
-            # Hash password for security
-            hashed_password = hashPassword(password)
 
             # Create a new User object
-            new_user = User(username=username, password=hashed_password, admin=admin)
+            new_user = User(username=username, password=password, admin=admin)
             
             try: # Commit new User object
                 db.session.add(new_user)
@@ -360,7 +343,7 @@ def userAccount(id):
                 if new_username:
                     user.username = new_username
                 if new_password:
-                    user.password = hashPassword(new_password)
+                    user.password = new_password
 
                 db.session.commit()
                 flash("Account updated successfully!", 'success')
@@ -414,7 +397,7 @@ def update(id):
         # Generates hash of password to ensure security
         user.username = new_username
         if new_password:
-            user.password = hashPassword(new_password)
+            user.password = new_password
 
         # Updates user details if username is available
         db.session.commit()
