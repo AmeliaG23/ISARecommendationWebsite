@@ -56,6 +56,10 @@ The website has been published through [Vercel](https://vercel.com/home) and can
 
 ### Installation Steps
 
+**NOTE:** When installing locally please change the SQLAlchemy Database URI from the Vercel Postgresql to either your own or an SQLite Database:
+   ```bash
+   app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///path/to/database.db'
+   ```
 1. **Clone the Repository**:
    ```bash
    git clone https://github.com/AmeliaG23/ISA-Recommendation-Website.git
