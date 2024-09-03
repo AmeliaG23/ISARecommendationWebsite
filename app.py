@@ -135,81 +135,83 @@ def calculateRiskRatingCount(riskTolerance, investmentComfort, investmentReview)
 
     return riskRatingCount
 
-# Function to add initial data to the database (2 admin users + 10 regular users)
-def addData():
-    # Check if there are any users in the database
-    if User.query.first() is not None:
-        print("Data already initialized.")
-        return  # Exit the function early if data exists
-
+# Function to add initial data to the database (2 admin users + 8 regular users)
+def initializeData():
     try:
-        # Define 2 admin users and 8 regular users
-        admin_users = [
-            {'username': 'admin1', 'password': 'admin_password1'},
-            {'username': 'admin2', 'password': 'admin_password2'}
-        ]
-        regular_users = [
-            {'username': f'user{i}', 'password': f'user{i}_password'} for i in range(1, 9)
-        ]
+        with app.app_context():
+            # Check if any users exist in the database
+            if User.query.first() is not None:
+                print("Data already initialized.")
+            else:
+                # Define 2 admin users and 8 regular users
+                admin_users = [
+                    {'username': 'admin1', 'password': 'admin_password1'},
+                    {'username': 'admin2', 'password': 'admin_password2'}
+                ]
+                regular_users = [
+                    {'username': f'user{i}', 'password': f'user{i}_password'} for i in range(1, 9)
+                ]
 
-        # Add users to the database
-        for user_data in admin_users:
-            if not User.query.filter_by(username=user_data['username']).first():
-                hashedPassword = hashPassword(user_data['password'])
-                new_user = User(
-                    username=user_data['username'],
-                    password=hashedPassword,
-                    admin=True
-                )
-                db.session.add(new_user)
+                # Add users to the database
+                for user_data in admin_users:
+                    if not User.query.filter_by(username=user_data['username']).first():
+                        hashed_password = hashPassword(user_data['password'])
+                        new_user = User(
+                            username=user_data['username'],
+                            password=hashed_password,
+                            admin=True
+                        )
+                        db.session.add(new_user)
 
-        for user_data in regular_users:
-            if not User.query.filter_by(username=user_data['username']).first():
-                hashedPassword = hashPassword(user_data['password'])
-                new_user = User(
-                    username=user_data['username'],
-                    password=hashedPassword,
-                    admin=False
-                )
-                db.session.add(new_user)
+                for user_data in regular_users:
+                    if not User.query.filter_by(username=user_data['username']).first():
+                        hashed_password = hashPassword(user_data['password'])
+                        new_user = User(
+                            username=user_data['username'],
+                            password=hashed_password,
+                            admin=False
+                        )
+                        db.session.add(new_user)
 
-        db.session.commit()  # Commit users to the database
+                db.session.commit()  # Commit users to the database
 
-        # Retrieve all users from the database
-        all_users = User.query.all()
+                # Retrieve all users from the database
+                all_users = User.query.all()
 
-        # Define values for projections
-        deposit = 1000.0
-        monthly_payment = 50.0
-        years = 10
+                # Define values for projections
+                deposit = 1000.0
+                monthly_payment = 50.0
+                years = 10
 
-        # Add projections for each user
-        for user in all_users:
-            if not Projections.query.filter_by(userId=user.id).first():
-                # Calculate future value of savings
-                annual_aer = 0.0484  # Default AER
-                risk_aer = getRiskAer('medium')  # Example risk rating
-                
-                projection_amount = calculateFutureValue(deposit, monthly_payment, years, annual_aer)
-                projection_risk_amount = calculateFutureValue(deposit, monthly_payment, years, risk_aer)
-                
-                # Create new projection
-                projection = Projections(
-                    deposit=deposit,
-                    monthlyPayment=monthly_payment,
-                    years=years,
-                    savings=True,
-                    highDebt=False,
-                    changes=False,
-                    riskRating='medium',
-                    riskRatingCount=calculateRiskRatingCount('medium', 'veryComfortable', 'regularly'),
-                    projectionAmount=projection_amount,
-                    projectionRiskAmount=projection_risk_amount,
-                    userId=user.id
-                )
-                db.session.add(projection)
+                # Add projections for each user
+                for user in all_users:
+                    if not Projections.query.filter_by(userId=user.id).first():
+                        # Calculate future value of savings
+                        annual_aer = 0.0484  # Default AER
+                        risk_aer = getRiskAer('medium')  # Example risk rating
+                        
+                        projection_amount = calculateFutureValue(deposit, monthly_payment, years, annual_aer)
+                        projection_risk_amount = calculateFutureValue(deposit, monthly_payment, years, risk_aer)
+                        
+                        # Create new projection
+                        projection = Projections(
+                            deposit=deposit,
+                            monthlyPayment=monthly_payment,
+                            years=years,
+                            savings=True,
+                            highDebt=False,
+                            changes=False,
+                            riskRating='medium',
+                            riskRatingCount=calculateRiskRatingCount('medium', 'veryComfortable', 'regularly'),
+                            projectionAmount=projection_amount,
+                            projectionRiskAmount=projection_risk_amount,
+                            userId=user.id
+                        )
+                        db.session.add(projection)
 
-        db.session.commit()  # Commit projections to the database
+                db.session.commit()  # Commit projections to the database
+
+                print("Data initialization complete.")
 
     except IntegrityError:
         db.session.rollback()
@@ -217,14 +219,6 @@ def addData():
     except Exception as e:
         db.session.rollback()
         print(f"An unexpected error occurred: {e}")
-
-@app.route('/initialize', methods=['GET'])
-def initialize():
-    if session.get('admin'):
-        addData()
-        return "Data initialization complete."
-    else:
-        return "Unauthorized", 403
 
 # Default route which is user login
 @app.route('/', methods=['POST', 'GET'])
@@ -553,6 +547,7 @@ def recommendations():
 
 # Entry point for the application
 if __name__ == '__main__':
+    initializeData()
     app.run()
 
 #(Jakerieger, 2022)
