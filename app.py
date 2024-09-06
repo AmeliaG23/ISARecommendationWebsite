@@ -19,6 +19,7 @@ from flask import Flask, flash, redirect, render_template, request, session, url
 from flask_sqlalchemy import SQLAlchemy
 import bcrypt
 import os
+import re
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -27,7 +28,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 
 # Use the environment variable DATABASE_URL if available; otherwise, use SQLite
-app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://default:U3oagGiR7HcT@ep-delicate-dew-a4quxafl.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require"
+#app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://default:U3oagGiR7HcT@ep-delicate-dew-a4quxafl.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require"
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///isadata.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -67,11 +69,35 @@ class Projections(db.Model):
     def __repr__(self) -> str:
         return f'<Projections {self.id}>'
 
+# Function to validate username
+def validateUsername(username):
+    errors = []
+    if not username:
+        errors.append("Username cannot be empty.")
+    if len(username) < 5 or len(username) > 15:
+        errors.append("Username must be between 5 and 15 characters long.")
+    # Check if username already exists
+    if User.query.filter_by(username=username).first():
+        errors.append("Username already exists.")
+    return errors
+
+# Function to validate password - checks length and for special characters
+def validatePassword(password):
+    errors = []
+    if not password:
+        errors.append("Password cannot be empty.")
+    if len(password) < 6 or len(password) > 14:
+        errors.append("Password must be between 6 and 14 characters long.")
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        errors.append("Password must contain at least one special character.")
+    return errors
+
+
 # Function to retrieve the current logged-in user ID
 def getCurrentUser():
     if 'userId' in session:
-        user_id = session['userId']
-        user = User.query.get(user_id)
+        userId = session['userId']
+        user = User.query.get(userId)
         if user:
             return user.id  # Return only the user ID
     return None
@@ -144,16 +170,16 @@ def initializeData():
                 print("Data already initialized.")
             else:
                 # Define 2 admin users and 8 regular users
-                admin_users = [
+                adminUsers = [
                     {'username': 'admin1', 'password': 'admin_password1'},
                     {'username': 'admin2', 'password': 'admin_password2'}
                 ]
-                regular_users = [
+                regularUsers = [
                     {'username': f'user{i}', 'password': f'user{i}_password'} for i in range(1, 9)
                 ]
 
                 # Add users to the database
-                for user_data in admin_users:
+                for user_data in adminUsers:
                     if not User.query.filter_by(username=user_data['username']).first():
                         hashed_password = hashPassword(user_data['password'])
                         new_user = User(
@@ -163,7 +189,7 @@ def initializeData():
                         )
                         db.session.add(new_user)
 
-                for user_data in regular_users:
+                for user_data in regularUsers:
                     if not User.query.filter_by(username=user_data['username']).first():
                         hashed_password = hashPassword(user_data['password'])
                         new_user = User(
@@ -176,35 +202,35 @@ def initializeData():
                 db.session.commit()  # Commit users to the database
 
                 # Retrieve all users from the database
-                all_users = User.query.all()
+                allUsers = User.query.all()
 
                 # Define values for projections
                 deposit = 1000.0
-                monthly_payment = 50.0
+                monthlyPayment = 50.0
                 years = 10
 
                 # Add projections for each user
-                for user in all_users:
+                for user in allUsers:
                     if not Projections.query.filter_by(userId=user.id).first():
                         # Calculate future value of savings
-                        annual_aer = 0.0484  # Default AER
-                        risk_aer = getRiskAer('medium')  # Example risk rating
+                        annualAer = 0.0484  # Default AER
+                        riskAer = getRiskAer('medium')  # Example risk rating
                         
-                        projection_amount = calculateFutureValue(deposit, monthly_payment, years, annual_aer)
-                        projection_risk_amount = calculateFutureValue(deposit, monthly_payment, years, risk_aer)
+                        projectionAmount = calculateFutureValue(deposit, monthlyPayment, years, annualAer)
+                        projectionRiskAmount = calculateFutureValue(deposit, monthlyPayment, years, riskAer)
                         
                         # Create new projection
                         projection = Projections(
                             deposit=deposit,
-                            monthlyPayment=monthly_payment,
+                            monthlyPayment=monthlyPayment,
                             years=years,
                             savings=True,
                             highDebt=False,
                             changes=False,
                             riskRating='medium',
                             riskRatingCount=calculateRiskRatingCount('medium', 'veryComfortable', 'regularly'),
-                            projectionAmount=projection_amount,
-                            projectionRiskAmount=projection_risk_amount,
+                            projectionAmount=projectionAmount,
+                            projectionRiskAmount=projectionRiskAmount,
                             userId=user.id
                         )
                         db.session.add(projection)
@@ -243,27 +269,31 @@ def signUp():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        confirm_password = request.form['confirm_password']
+        confirmPassword = request.form['confirm_password']
 
-        # Validate username and password length
-        if len(username) < 5 or len(username) > 15:
-            flash("Username must be between 5 and 15 characters", 'warning') # (Message Flashing, 2024)
+         # Validate username
+        usernameError = validateUsername(username)
+        if usernameError:
+            flash(usernameError, 'warning')
             return redirect(url_for('signUp'))
 
-        if len(password) < 5 or len(password) > 15:
-            flash("Password must be between 5 and 15 characters", 'warning')
+        # Validate password
+        passwordError = validatePassword(password)
+        if passwordError:
+            flash(passwordError, 'warning')
             return redirect(url_for('signUp'))
 
-        if password != confirm_password:
+        # Check if passwords match
+        if password != confirmPassword:
             flash("Passwords do not match", 'warning')
             return redirect(url_for('signUp'))
         
-        hashed_password = hashPassword(password)  # Hash the password
-        new_user = User(username=username, password=hashed_password, admin=False)
+        hashedPassword = hashPassword(password)  # Hash the password
+        newUser = User(username=username, password=hashedPassword, admin=False)
         #(Python Tutorials, 2023)
 
         try:
-            db.session.add(new_user)
+            db.session.add(newUser)
             db.session.commit()
 
             return redirect(url_for('signUp', success=True))
@@ -289,37 +319,39 @@ def admin():
     # Check if the user is logged in and has admin privileges
     if 'userId' in session and session.get('admin'):
         if request.method == 'POST':
-            username = request.form['username']
-            password = request.form['password']
-            # Convert the 'admin' checkbox value to a boolean 
+            username = request.form.get('username', '')
+            password = request.form.get('password', '')
+            # Convert the 'admin' radio button value to a boolean
             admin = request.form.get('admin') == 'yes'
 
-            # Validate the username length is between 5 and 15 characters
-            if not (5 <= len(username) <= 15):
-                # Display an error message if it is not
-                flash("Username must be between 5 and 15 characters long", 'danger')
-                return render_template('admin.html', users=User.query.all())
-            
-            # Validate that password length is between 5 and 15 characters
-            if not (5 <= len(password) <= 15):
-                # Display an error message if it is nott
-                flash("Password must be between 5 and 15 characters long", 'danger')
+           # Validate username
+            usernameErrors = validateUsername(username)
+            if usernameErrors:
+                for error in usernameErrors:
+                    flash(error, 'warning')
                 return render_template('admin.html', users=User.query.all())
 
-             # Hash the password before storing it
-            hashed_password = hashPassword(password)
+            # Validate password
+            passwordErrors = validatePassword(password)
+            if passwordErrors:
+                for error in passwordErrors:
+                    flash(error, 'warning')
+                return render_template('admin.html', users=User.query.all())
+            # Hash the password before storing it
+            hashedPassword = hashPassword(password)
 
             # Create a new User object
-            new_user = User(username=username, password=hashed_password, admin=admin)
+            newUser = User(username=username, password=hashedPassword, admin=admin)
 
-            try: # Commit new User object
-                db.session.add(new_user)
+            try:
+                # Commit new User object
+                db.session.add(newUser)
                 db.session.commit()
-                flash("User added successfully", 'success') # Display success message
+                flash("User added successfully", 'success')
             except Exception as e:
                 # Handle any exceptions
                 print(f"Error: {e}")
-                flash("Username already exists", 'danger')
+                flash("An error occurred while adding the user", 'danger')
 
         # Retrieve all users from the database to display on the page
         users = User.query.all()
@@ -328,39 +360,63 @@ def admin():
         # If the user is not logged in or is not an admin, redirect to the login page
         return redirect(url_for('index'))
 
+
 # Route for admin accounts to access table to view all user account and perform CRUD operations
 @app.route('/userAccount', defaults={'id': None}, methods=['GET', 'POST'])
 @app.route('/userAccount/<int:id>', methods=['GET', 'POST'])
 def userAccount(id):
     # Get the currently logged-in user ID from the session
-    current_user_id = session.get('userId')
+    currentUserId = getCurrentUser()
     
-    if current_user_id:
+    if currentUserId:
         if id is None:  # If no specific ID is provided, assume the current user's ID
-            id = current_user_id
+            id = currentUserId
 
         # Fetch the user object from the database
         user = User.query.get_or_404(id)
 
         if request.method == 'POST':
             # Retrieve the new username and password from the form
-            new_username = request.form['username']
-            new_password = request.form['password']
+            newUsername = request.form.get('username', '').strip()
+            newPassword = request.form.get('password', '').strip()
 
-            # Check if the new username is already in use by another user
-            existing_user = User.query.filter_by(username=new_username).first()
-            if existing_user and existing_user.id != user.id:
-                flash("Username is already in use. Please choose a different one.", 'warning')
-            else:
-                # Update user details if the username is available
-                if new_username:
-                    user.username = new_username
-                if new_password:
-                    user.password = hashPassword(new_password)  # Hash the new password before saving
+            # Check if a new username is provided and if it's different from the current username
+            if newUsername and newUsername != user.username:
+                # Validate new username
+                usernameErrors = validateUsername(newUsername)
+                if usernameErrors:
+                    for error in usernameErrors:
+                        flash(error, 'warning')
+                    return render_template('userAccount.html', user=user)
+                
+                # Check if the new username is already in use by another user
+                existingUser = User.query.filter_by(username=newUsername).first()
+                if existingUser and existingUser.id != user.id:
+                    flash("Username is already in use. Please choose a different one.", 'warning')
+                    return render_template('userAccount.html', user=user)
 
+                # Update username
+                user.username = newUsername
+
+            if newPassword:
+                # Validate password if provided
+                passwordErrors = validatePassword(newPassword)
+                if passwordErrors:
+                    for error in passwordErrors:
+                        flash(error, 'warning')
+                    return render_template('userAccount.html', user=user)
+                
+                # Hash the new password before saving
+                hashedPassword = hashPassword(newPassword)
+                user.password = hashedPassword
+
+            try:
                 db.session.commit()
                 flash("Account updated successfully!", 'success')
                 return redirect(url_for('userAccount', id=user.id))
+            except Exception as e:
+                print(f"Error: {e}")
+                flash("An error occurred while updating the account", 'danger')
 
         return render_template('userAccount.html', user=user)
 
@@ -372,11 +428,11 @@ def userAccount(id):
 @app.route('/delete/<int:id>')
 def delete(id):
     # id of chosen user is passed through and retrieved
-    user_to_delete = User.query.get_or_404(id) 
+    userToDelete = User.query.get_or_404(id) 
     try:
         # Deletes user
         Projections.query.filter_by(userId=id).delete()
-        db.session.delete(user_to_delete)
+        db.session.delete(userToDelete)
         db.session.commit()
         
         return redirect(url_for('admin'))
@@ -393,30 +449,48 @@ def update(id):
     user = User.query.get_or_404(id)
 
     if request.method == 'POST':
-        # Retrieve the new username and password
-        new_username = request.form['username']
-        new_password = request.form['password']
+        # Retrieve the new username and password from the form
+        newUsername = request.form.get('username', '').strip()
+        newPassword = request.form.get('password', '').strip()
 
-        # Validate username and password length
-        if not (5 <= len(new_username) <= 15):
-            flash("Username must be between 5 and 15 characters", 'warning')
-        if new_password and not (5 <= len(new_password) <= 15):
-            flash("Password must be between 5 and 15 characters", 'warning')
-     
-        # Check if the new username is already in use
-        if User.query.filter_by(username=new_username).first() and new_username != user.username:
-            flash("Username already exists", 'warning')
+        # Check if a new username is provided and if it's different from the current username
+        if newUsername and newUsername != user.username:
+            # Validate new username
+            username_errors = validateUsername(newUsername)
+            if username_errors:
+                for error in username_errors:
+                    flash(error, 'warning')
+                return render_template('update.html', user=user)
 
-        # Generates hash of password to ensure security
-        user.username = new_username
-        if new_password:
-                user.password = hashPassword(new_password)  # Hash the new password
+            # Check if the new username is already in use by another user
+            existing_user = User.query.filter_by(username=newUsername).first()
+            if existing_user and existing_user.id != user.id:
+                flash("Username already exists", 'warning')
+                return render_template('update.html', user=user)
+            
+            # Update username
+            user.username = newUsername
 
-        # Updates user details if username is available
-        db.session.commit()
-        flash("Account updated successfully", 'success')
+        # Validate and update password if provided
+        if newPassword:
+            password_errors = validatePassword(newPassword)
+            if password_errors:
+                for error in password_errors:
+                    flash(error, 'warning')
+                return render_template('update.html', user=user)
+            # Hash the new password before saving
+            hashed_password = hashPassword(newPassword)
+            user.password = hashed_password
+
+        try:
+            db.session.commit()
+            flash("Account updated successfully", 'success')
+        except Exception as e:
+            print(f"Error: {e}")
+            flash("An error occurred while updating the account", 'danger')
 
     return render_template('update.html', user=user)
+
 
 # Route for user to log out of application
 @app.route('/logout')
@@ -432,7 +506,33 @@ def factFind():
     user = getCurrentUser()  # Get the current user
     if not user:
         # Redirect to the login page if no user is authenticated
-        return redirect(url_for('index')) 
+        return redirect(url_for('index'))
+
+    userId = session.get('userId')
+    if userId is None:
+        return redirect(url_for('index'))
+
+    # Prepare pre-filled form data
+    prefilledData = {
+        'deposit': '',
+        'monthlyPayment': '',
+        'years': '',
+        'savings': '',
+        'highDebt': '',
+        'changes': '',
+    }
+
+    # Retrieve existing projection for the user
+    projections = Projections.query.filter_by(userId=userId).first()
+    if projections:
+        prefilledData = {
+            'deposit': projections.deposit,
+            'monthlyPayment': projections.monthlyPayment,
+            'years': projections.years,
+            'savings': 'true' if projections.savings else 'true',
+            'highDebt': 'true' if projections.highDebt else 'false',
+            'changes': 'true' if projections.changes else 'false',
+        }
 
     if request.method == 'POST':
         try:
@@ -440,43 +540,35 @@ def factFind():
             deposit = request.form.get('deposit')
             monthlyPayment = request.form.get('monthlyPayment')
             years = request.form.get('years')
-            savings = request.form.get('savings')
-            highDebt = request.form.get('highDebt')
-            changes = request.form.get('changes')
+            savings = request.form.get('savings') == 'true'
+            highDebt = request.form.get('highDebt') == 'true'
+            changes = request.form.get('changes') == 'true'
             riskTolerance = request.form.get('riskTolerance')
             investmentComfort = request.form.get('investmentComfort')
             investmentReview = request.form.get('investmentReview')
 
             # Ensure that all fields have been filled out
-            if not all([deposit, monthlyPayment, years, savings, highDebt, changes, riskTolerance, investmentComfort, investmentReview]):
-                return render_template('factFind.html', error="All fields must be filled out")
+            if not all([deposit, monthlyPayment, years, savings is not None, highDebt is not None, changes is not None, riskTolerance, investmentComfort, investmentReview]):
+                return render_template('factFind.html', error="All fields must be filled out", prefilledData=prefilledData)
 
             # Convert to requested data types matching table layout
             deposit = float(deposit)
             monthlyPayment = float(monthlyPayment)
             years = int(years)
-            savings = savings == 'true'
-            highDebt = highDebt == 'true'
-            changes = changes == 'true'
 
             # Calculate the attitude to risk score count
             riskRatingCount = calculateRiskRatingCount(riskTolerance, investmentComfort, investmentReview)
 
-            userId = session['userId']
-
-            # Checks if there is an existing projection for current user
-            eligibility = Projections.query.filter_by(userId=userId).first()
-            if eligibility: # Updates existing projection if True
-                eligibility.deposit = deposit
-                eligibility.monthlyPayment = monthlyPayment
-                eligibility.years = years
-                eligibility.savings = savings
-                eligibility.highDebt = highDebt
-                eligibility.changes = changes
-                eligibility.riskRating = riskTolerance
-                eligibility.riskRatingCount = riskRatingCount
-            else: # If not, creates a new one
-                eligibility = Projections(
+            # Checks if there is an existing projection for the current user
+            if projections:
+                projections.deposit = deposit
+                projections.monthlyPayment = monthlyPayment
+                projections.years = years
+                projections.savings = savings
+                projections.highDebt = highDebt
+                projections.changes = changes
+            else:
+                projections = Projections(
                     deposit=deposit,
                     monthlyPayment=monthlyPayment,
                     years=years,
@@ -487,7 +579,7 @@ def factFind():
                     riskRatingCount=riskRatingCount,
                     userId=userId
                 )
-                db.session.add(eligibility)
+                db.session.add(projections)
 
             # Calculate future values for projections
             annualAer = 0.0484  # Default annual AER
@@ -495,21 +587,18 @@ def factFind():
             riskAer = getRiskAer(riskTolerance)  # Get AER based on the user's risk attitude
             futureValueRisk = calculateFutureValue(deposit, monthlyPayment, years, riskAer)
 
-            # Update projection amounts in the eligibility record
-            eligibility.projectionAmount = futureValue
-            eligibility.projectionRiskAmount = futureValueRisk
+            # Update projection amounts in the projections record
+            projections.projectionAmount = futureValue
+            projections.projectionRiskAmount = futureValueRisk
             db.session.commit()
-
-            # Debugging: confirm successful data saving
-            print("Data and projections saved successfully to the database.")
 
             return redirect(url_for('projection'))
 
-        # Handle any errors 
         except Exception as e:
             print(f"Error: {e}")
-            return render_template('factFind.html', error="An error occurred while saving your data.")
-    return render_template('factFind.html')
+            return render_template('factFind.html', error="An error occurred while saving your data.", prefilledData=prefilledData)
+
+    return render_template('factFind.html', prefilledData=prefilledData)
 
 # Route for projection which displays projection amount after fact find form completed
 @app.route('/projection')
@@ -537,7 +626,7 @@ def recommendations():
     if user:
         userId = session['userId']
 
-        # Fetch all Projections for the current user
+        # Fetch Projections for the current user
         projectionsData = Projections.query.filter_by(userId=userId).all()
 
         # Pass data to the template

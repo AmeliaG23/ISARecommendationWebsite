@@ -44,10 +44,11 @@ Description : This file contains the user account page, accessed through the hea
     <!-- Form to allow user to update their own details -->
     <form method="POST" action="{{ url_for('userAccount', id=user.id) }}">
         <label for="username">Username:</label><br />
-        <input type="text" id="username" name="username" value="{{ user.username }}" />
+        <input type="text" id="username" name="username" value="{{ user.username }}" minlength="5" maxlength="15" />
         <br /><br />
         <label for="password">New Password:</label><br />
-        <input type="password" id="password" name="password" placeholder="Leave blank to keep current password" />
+        <input type="password" id="password" name="password" placeholder="Leave blank to keep current password"
+            minlength="6" maxlength="14" />
         <br /><br />
         <!-- Update button to update current users details in User table -->
         <button class="button" type="submit">Update Account</button>

@@ -35,9 +35,10 @@ Description : This file contains the form for the signup page, which extends the
 <!-- Validation of form takes place in app route -->
 <form method="POST" action="{{ url_for('signUp') }}" onsubmit="return validateForm()">
     <!-- All input boxes are required -->
-    <input type="text" id="username" name="username" placeholder="Username" required>
-    <input type="password" id="password" name="password" placeholder="Password" required>
-    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required>
+    <input type="text" id="username" name="username" placeholder="Username" required minlength="5" maxlength="15">
+    <input type="password" id="password" name="password" placeholder="Password" required minlength="6" maxlength="14">
+    <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm Password" required
+        minlength="6" maxlength="14">
 
     <button class="button" type="submit">Sign Up</button>
 </form>
