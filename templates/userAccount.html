@@ -22,9 +22,12 @@ Description : This file contains the user account page, accessed through the hea
 {% block content %}
 
 <script>
-    // Javascript function for back button- redirects user to home.html
+
+    // JavaScript function to navigate based on the provided redirect URL
     function backButton() {
-        window.history.back();
+        // Get the value of the redirect URL from the hidden input
+        const redirectUrl = document.getElementById("redirect-url").value;
+        window.location.href = redirectUrl;
     }
 </script>
 
@@ -54,6 +57,9 @@ Description : This file contains the user account page, accessed through the hea
         <button class="button" type="submit">Update Account</button>
         <!-- Back button -->
         <button class="back-button" type="button" onclick="backButton()">Back</button>
+        <input type="hidden" id="redirect-url"
+            value="{{ url_for('admin') if previousPage == 'admin' else url_for('home') }}">
+
     </form>
 </div>
 {% endblock %}

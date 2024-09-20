@@ -367,7 +367,11 @@ def admin():
 def userAccount(id):
     # Get the currently logged-in user ID from the session
     currentUserId = getCurrentUser()
-    
+
+    # Check if the current user is an admin
+    isAdmin = User.admin  # Assuming user has an admins attribute
+    previousPage = 'admin' if isAdmin else 'home'  # Set previous page
+
     if currentUserId:
         if id is None:  # If no specific ID is provided, assume the current user's ID
             id = currentUserId
@@ -418,7 +422,7 @@ def userAccount(id):
                 print(f"Error: {e}")
                 flash("An error occurred while updating the account", 'danger')
 
-        return render_template('userAccount.html', user=user)
+        return render_template('userAccount.html', user=user, previousPage=previousPage)
 
     else:
         return redirect(url_for('index'))
@@ -482,6 +486,10 @@ def update(id):
             hashed_password = hashPassword(newPassword)
             user.password = hashed_password
 
+        # Check if the current user is an admin
+        isAdmin = User.admin  # Assuming user has an admin attribute
+        previousPage = 'admin' if isAdmin else 'home'  # Set previous page
+         
         try:
             db.session.commit()
             flash("Account updated successfully", 'success')
@@ -489,7 +497,7 @@ def update(id):
             print(f"Error: {e}")
             flash("An error occurred while updating the account", 'danger')
 
-    return render_template('update.html', user=user)
+    return render_template('userAccount.html', user=user, previousPage=previousPage)
 
 
 # Route for user to log out of application
