@@ -24,7 +24,7 @@ Description : This file contains the user account page, accessed through the hea
 <script>
     // Javascript function for back button- redirects user to home.html
     function backButton() {
-        window.location.href = "{{ url_for('home') }}";
+        window.history.back();
     }
 </script>
 
