@@ -29,6 +29,8 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 
 # Use the environment variable DATABASE_URL if available; otherwise, use SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://default:U3oagGiR7HcT@ep-delicate-dew-a4quxafl.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require"
+
+# Use for when using local SQLite Database
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.instance_path, 'your_database.db')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -368,10 +370,6 @@ def userAccount(id):
     # Get the currently logged-in user ID from the session
     currentUserId = getCurrentUser()
 
-    # Check if the current user is an admin
-    isAdmin = False  # User is not using admin update route
-    previousPage = 'admin' if isAdmin else 'home'  # Set previous page
-
     if currentUserId:
         if id is None:  # If no specific ID is provided, assume the current user's ID
             id = currentUserId
@@ -422,7 +420,7 @@ def userAccount(id):
                 print(f"Error: {e}")
                 flash("An error occurred while updating the account", 'danger')
 
-        return render_template('userAccount.html', user=user, previousPage=previousPage)
+        return render_template('userAccount.html', user=user, previousPage='home')
 
     else:
         return redirect(url_for('index'))
@@ -485,10 +483,6 @@ def update(id):
             # Hash the new password before saving
             hashed_password = hashPassword(newPassword)
             user.password = hashed_password
-
-        # Check if the current user is an admin
-        isAdmin = True  # Assuming user has an admin attribute
-        previousPage = 'admin' if isAdmin else 'home'  # Set previous page
          
         try:
             db.session.commit()
@@ -497,7 +491,7 @@ def update(id):
             print(f"Error: {e}")
             flash("An error occurred while updating the account", 'danger')
 
-    return render_template('userAccount.html', user=user, previousPage=previousPage)
+    return render_template('userAccount.html', user=user, previousPage= 'admin')
 
 
 # Route for user to log out of application
