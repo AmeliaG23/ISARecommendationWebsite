@@ -29,6 +29,7 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default_secret_key')
 
 # Use the environment variable DATABASE_URL if available; otherwise, use SQLite
 app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://default:U3oagGiR7HcT@ep-delicate-dew-a4quxafl.us-east-1.aws.neon.tech:5432/verceldb?sslmode=require"
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(app.instance_path, 'your_database.db')
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -442,7 +443,7 @@ def delete(id):
         db.session.rollback()  
         return 'Error with deleting user'
 
-# Route for admin updating user details (similar to userAccount route)
+# Route for admin updating user details from Admin Control Page
 @app.route('/update/<int:id>', methods=['GET', 'POST'])
 def update(id):
     user = User.query.get_or_404(id)
@@ -459,13 +460,13 @@ def update(id):
             if username_errors:
                 for error in username_errors:
                     flash(error, 'warning')
-                return render_template('update.html', user=user)
+                return render_template('userAccount.html', user=user)
 
             # Check if the new username is already in use by another user
             existing_user = User.query.filter_by(username=newUsername).first()
             if existing_user and existing_user.id != user.id:
                 flash("Username already exists", 'warning')
-                return render_template('update.html', user=user)
+                return render_template('userAccount.html', user=user)
             
             # Update username
             user.username = newUsername
@@ -476,7 +477,7 @@ def update(id):
             if password_errors:
                 for error in password_errors:
                     flash(error, 'warning')
-                return render_template('update.html', user=user)
+                return render_template('userAccount.html', user=user)
             # Hash the new password before saving
             hashed_password = hashPassword(newPassword)
             user.password = hashed_password
@@ -511,7 +512,7 @@ def factFind():
     if userId is None:
         return redirect(url_for('index'))
 
-    # Prepare pre-filled form data
+    # Prepare pre-filled form data with default empty values
     prefilledData = {
         'deposit': '',
         'monthlyPayment': '',
@@ -521,17 +522,21 @@ def factFind():
         'changes': '',
     }
 
-    # Retrieve existing projection for the user
-    projections = Projections.query.filter_by(userId=userId).first()
-    if projections:
-        prefilledData = {
-            'deposit': projections.deposit,
-            'monthlyPayment': projections.monthlyPayment,
-            'years': projections.years,
-            'savings': 'true' if projections.savings else 'true',
-            'highDebt': 'true' if projections.highDebt else 'false',
-            'changes': 'true' if projections.changes else 'false',
-        }
+    # Check if the user came from the recommendations page
+    came_from_recommendations = session.pop('came_from_recommendations', False)
+
+    # Retrieve existing projection for the user only if they came from recommendations
+    if came_from_recommendations:
+        projections = Projections.query.filter_by(userId=userId).first()
+        if projections:
+            prefilledData = {
+                'deposit': projections.deposit,
+                'monthlyPayment': projections.monthlyPayment,
+                'years': projections.years,
+                'savings': 'true' if projections.savings else 'false',
+                'highDebt': 'true' if projections.highDebt else 'false',
+                'changes': 'true' if projections.changes else 'false',
+            }
 
     if request.method == 'POST':
         try:
@@ -559,6 +564,7 @@ def factFind():
             riskRatingCount = calculateRiskRatingCount(riskTolerance, investmentComfort, investmentReview)
 
             # Checks if there is an existing projection for the current user
+            projections = Projections.query.filter_by(userId=userId).first()
             if projections:
                 projections.deposit = deposit
                 projections.monthlyPayment = monthlyPayment
@@ -624,6 +630,9 @@ def recommendations():
     user = getCurrentUser()
     if user:
         userId = session['userId']
+        
+        # Track that the user came from the recommendations page
+        session['came_from_recommendations'] = True
 
         # Fetch Projections for the current user
         projectionsData = Projections.query.filter_by(userId=userId).all()
@@ -633,11 +642,10 @@ def recommendations():
     else:
         return redirect(url_for('index'))
 
+
 # Entry point for the application
 if __name__ == '__main__':
     initializeData()
     app.run()
 
 #(Jakerieger, 2022)
-
-
