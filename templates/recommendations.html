@@ -67,12 +67,12 @@ Description : This file contains the layout for the page in which users are able
             {% endfor %}
         </tbody>
     </table>
+    <button class="button" type="button" onclick="updateButton()">Update Projections</button>
     {% else %}
     <p>You have no past projections, complete the fact find questionnaire first.</p>
     {% endif %}
 
     <!-- Buttons for navigation -->
-    <button class="button" type="button" onclick="updateButton()">Update Projections</button>
     <button class="back-button" type="button" onclick="backButton()">Back</button>
 </div>
 {% endblock %}
