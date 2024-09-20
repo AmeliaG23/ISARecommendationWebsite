@@ -369,7 +369,7 @@ def userAccount(id):
     currentUserId = getCurrentUser()
 
     # Check if the current user is an admin
-    isAdmin = User.admin  # Assuming user has an admins attribute
+    isAdmin = False  # User is not using admin update route
     previousPage = 'admin' if isAdmin else 'home'  # Set previous page
 
     if currentUserId:
@@ -487,7 +487,7 @@ def update(id):
             user.password = hashed_password
 
         # Check if the current user is an admin
-        isAdmin = User.admin  # Assuming user has an admin attribute
+        isAdmin = True  # Assuming user has an admin attribute
         previousPage = 'admin' if isAdmin else 'home'  # Set previous page
          
         try:
